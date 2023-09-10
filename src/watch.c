@@ -136,6 +136,90 @@ int number_of_watches = 0;
 TBOOLEAN watch_mouse_active = FALSE;
 struct text_label watchpoint_labelstyle;
 
+#define EPS 3.0E-8
+
+/*
+ * Improve initial linear approximation of xhit by
+ * golden ratio bisection of the original interval.
+ */
+#define PHIM1 0.618034
+void
+bisect_hit(struct curve_points *plot, t_bisection_target target,
+	   double *xhit, double *yhit, double xlow, double xhigh)
+{
+    double x0, x1, x2, x3;
+    double f1, f2;		/* f1 = f(x1),  f2 = f(x2) */
+    struct value a;
+    TBOOLEAN left;
+
+    double epsilon = (target == BISECT_MATCH) ? EPS : 1.e-14;
+
+    x0 = xlow;
+    x3 = xhigh;
+    if (fabs(xhigh - *xhit) > fabs(*xhit - xlow)) {
+	x1 = *xhit;
+	x2 = *xhit + (1.0-PHIM1) * (xhigh - *xhit);
+    } else {
+	x2 = *xhit;
+	x1 = *xhit - (1.0-PHIM1) * (*xhit - xlow);
+    }
+
+    Gcomplex( &(plot->plot_function.dummy_values[0]), x1, 0 );
+    evaluate_at(plot->plot_function.at, &a);
+    f1 = real(&a);
+    Gcomplex( &(plot->plot_function.dummy_values[0]), x2, 0 );
+    evaluate_at(plot->plot_function.at, &a);
+    f2 = real(&a);
+
+    /* Iterate until convergence of estimated xhit */
+    while (fabs(x3-x0) > epsilon * (fabs(x1) + fabs(x2))) {
+
+	if (target == BISECT_MINIMIZE)
+	    left = (f2 < f1);
+	else if (target == BISECT_MAXIMIZE)
+	    left = (f2 > f1);
+	else /* minimize difference of f(x) from *yhit */
+	    left = (fabs(f2 - *yhit) < fabs(f1 - *yhit));
+
+	if (left) {
+	    x0 = x1;
+	    x1 = x2;
+	    x2 = PHIM1*x2 + (1.0-PHIM1)*x3;
+	    f1 = f2;
+	    Gcomplex( &(plot->plot_function.dummy_values[0]), x2, 0 );
+	    evaluate_at(plot->plot_function.at, &a);
+	    f2 = real(&a);
+	} else {
+	    x3 = x2;
+	    x2 = x1;
+	    x1 = PHIM1*x1 + (1.0-PHIM1)*x0;
+	    f2 = f1;
+	    Gcomplex( &(plot->plot_function.dummy_values[0]), x1, 0 );
+	    evaluate_at(plot->plot_function.at, &a);
+	    f1 = real(&a);
+	}
+
+	if ((fabs(x1) + fabs(x2)) < epsilon)
+	    break;
+    }
+
+    /* Update and return hit coordinates */
+    if (target == BISECT_MINIMIZE)
+	left = (f2 < f1);
+    else if (target == BISECT_MAXIMIZE)
+	left = (f2 > f1);
+    else /* minimize difference of f(x) from *yhit */
+	left = (fabs(f2 - *yhit) < fabs(f1 - *yhit));
+
+    if (left) {
+	*xhit = x2;
+	*yhit = f2;
+    } else {
+	*xhit = x1;
+	*yhit = f1;
+    }
+}
+
 #ifdef USE_WATCHPOINTS
 
 /*
@@ -165,9 +249,6 @@ static struct text_label default_labelstyle = {
 	.hypertext = FALSE,
 	.hidden = TRUE
 };
-
-#define EPS 3.0E-8
-
 
 /*
  * Analogous to draw_clip_line() except that instead of drawing
@@ -456,88 +537,6 @@ init_watch(struct curve_points *plot)
 	array = add_udv_by_name(array_name);
 	init_array(array, 0);
 	watch->hits = 0;
-    }
-}
-
-/*
- * Improve initial linear approximation of xhit by
- * golden ratio bisection of the original interval.
- */
-#define PHIM1 0.618034
-void
-bisect_hit(struct curve_points *plot, t_bisection_target target,
-	   double *xhit, double *yhit, double xlow, double xhigh)
-{
-    double x0, x1, x2, x3;
-    double f1, f2;		/* f1 = f(x1),  f2 = f(x2) */
-    struct value a;
-    TBOOLEAN left;
-
-    double epsilon = (target == BISECT_MATCH) ? EPS : 1.e-14;
-
-    x0 = xlow;
-    x3 = xhigh;
-    if (fabs(xhigh - *xhit) > fabs(*xhit - xlow)) {
-	x1 = *xhit;
-	x2 = *xhit + (1.0-PHIM1) * (xhigh - *xhit);
-    } else {
-	x2 = *xhit;
-	x1 = *xhit - (1.0-PHIM1) * (*xhit - xlow);
-    }
-
-    Gcomplex( &(plot->plot_function.dummy_values[0]), x1, 0 );
-    evaluate_at(plot->plot_function.at, &a);
-    f1 = real(&a);
-    Gcomplex( &(plot->plot_function.dummy_values[0]), x2, 0 );
-    evaluate_at(plot->plot_function.at, &a);
-    f2 = real(&a);
-
-    /* Iterate until convergence of estimated xhit */
-    while (fabs(x3-x0) > epsilon * (fabs(x1) + fabs(x2))) {
-
-	if (target == BISECT_MINIMIZE)
-	    left = (f2 < f1);
-	else if (target == BISECT_MAXIMIZE)
-	    left = (f2 > f1);
-	else /* minimize difference of f(x) from *yhit */
-	    left = (fabs(f2 - *yhit) < fabs(f1 - *yhit));
-
-	if (left) {
-	    x0 = x1;
-	    x1 = x2;
-	    x2 = PHIM1*x2 + (1.0-PHIM1)*x3;
-	    f1 = f2;
-	    Gcomplex( &(plot->plot_function.dummy_values[0]), x2, 0 );
-	    evaluate_at(plot->plot_function.at, &a);
-	    f2 = real(&a);
-	} else {
-	    x3 = x2;
-	    x2 = x1;
-	    x1 = PHIM1*x1 + (1.0-PHIM1)*x0;
-	    f2 = f1;
-	    Gcomplex( &(plot->plot_function.dummy_values[0]), x1, 0 );
-	    evaluate_at(plot->plot_function.at, &a);
-	    f1 = real(&a);
-	}
-
-	if ((fabs(x1) + fabs(x2)) < epsilon)
-	    break;
-    }
-
-    /* Update and return hit coordinates */
-    if (target == BISECT_MINIMIZE)
-	left = (f2 < f1);
-    else if (target == BISECT_MAXIMIZE)
-	left = (f2 > f1);
-    else /* minimize difference of f(x) from *yhit */
-	left = (fabs(f2 - *yhit) < fabs(f1 - *yhit));
-
-    if (left) {
-	*xhit = x2;
-	*yhit = f2;
-    } else {
-	*xhit = x1;
-	*yhit = f1;
     }
 }
 
