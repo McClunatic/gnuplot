@@ -54,8 +54,9 @@
  * If you build without GP_ENH_EST text layout will be degraded.
  */
 #define GP_ENH_EST 1		/* estimate string length of enhanced text */
-#define POSTSCRIPT_DRIVER 1	/* include post.trm */
-#define PSLATEX_DRIVER 1	/* include pslatex.trm */
+/* #define POSTSCRIPT_DRIVER 1
+#define PSLATEX_DRIVER 1
+*/
 
 #if defined(PSLATEX_DRIVER) && !defined(POSTSCRIPT_DRIVER)
 #define POSTSCRIPT_DRIVER
