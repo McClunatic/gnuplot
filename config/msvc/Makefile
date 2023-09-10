@@ -41,7 +41,8 @@
 #
 
 # Set to one iff doing a release build
-RELEASE=0
+RELEASE=1
+PLATFORM=X64
 
 # Compilation options, disable by setting to zero
 # Is libgd available? (required by terminal png/jpeg/gif)?
@@ -55,9 +56,9 @@ WXT = 0
 # Build Cairo Terminals (cairolatex, epslatex, pdflatex)
 CAIRO = 0
 # Build qt terminal?
-QT = 0
-# Set to one if you have Qt5 (instead of Qt4)
-QT5 = 1
+QT = 1
+# Set to one if you have Qt6 (instead of Qt4)
+QT6 = 1
 # Build the lua/tikz terminal?
 LUA = 0
 # Build caca terminal? Requires libcaca
@@ -80,15 +81,15 @@ DEPEND = 0
 #LUADIR = lua
 PDFDIR = pdflib
 #QTDIR = C:\Qt\4.8.4
-QTDIR = C:\Qt\5.8\msvc2015_64
+QTDIR = C:\Users\Brian\AppData\Local\Programs\Qt-6.5.2
 #CAIRODIR = cairo-pango
 #CACADIR = libcaca
-CAIRODIR = d:\msvc-libs
-LIBDIR =  d:\msvc-libs
+#CAIRODIR = d:\msvc-libs
+#LIBDIR =  d:\msvc-libs
 
 
 # installation directory
-DESTDIR = "$(PROGRAMFILES)\gnuplot"
+DESTDIR = "C:\Users\Brian\AppData\Local\Programs\gnuplot-6.0.0"
 
 TOP = ..\..
 
@@ -200,21 +201,21 @@ WXTLIBS = wxmsw28.lib wxtiff.lib
 
 !IF "$(QT)" == "1"
 !IF "$(DEBUG)" == "1"
-!IF "$(QT5)" == "1"
-QTLIBS = Qt5Cored.lib Qt5Guid.lib Qt5Networkd.lib Qt5Svgd.lib Qt5Widgetsd.lib Qt5PrintSupportd.lib qtmaind.lib
+!IF "$(QT6)" == "1"
+QTLIBS = Qt6Cored.lib Qt6Core5Compatd.lib Qt6Guid.lib Qt6Networkd.lib Qt6Svgd.lib Qt6Widgetsd.lib Qt6PrintSupportd.lib
 !ELSE
 QTLIBS = QtCored4.lib QtGuid4.lib QtNetworkd4.lib QtSvgd4.lib
 !ENDIF
 !ELSE
-!IF "$(QT5)" == "1"
-QTLIBS = Qt5Core.lib Qt5Gui.lib Qt5Network.lib Qt5Svg.lib Qt5Widgets.lib Qt5PrintSupport.lib qtmain.lib
+!IF "$(QT6)" == "1"
+QTLIBS = Qt6Core.lib Qt6Core5Compat.lib Qt6Gui.lib Qt6Network.lib Qt6Svg.lib Qt6Widgets.lib Qt6PrintSupport.lib
 !ELSE
 QTLIBS = QtCore4.lib QtGui4.lib QtNetwork4.lib QtSvg4.lib
 !ENDIF
 !ENDIF
-CFLAGS = $(CFLAGS) /I$(QTDIR)\include /I$(QTDIR)\include\QtCore /I$(QTDIR)\include\QtGui /I$(QTDIR)\include\QtWidgets /I$(QTDIR)\include\QtNetwork /I$(QTDIR)\include\QtSvg /DQTGNUPLOT_DATA_DIR=\"$(GNUPLOT_QT_DIR)\"
+CFLAGS = $(CFLAGS) /I$(QTDIR)\include /I$(QTDIR)\include\QtCore5Compat /I$(QTDIR)\include\QtCore /I$(QTDIR)\include\QtGui /I$(QTDIR)\include\QtWidgets /I$(QTDIR)\include\QtNetwork /I$(QTDIR)\include\QtSvg /DQTGNUPLOT_DATA_DIR=\"$(GNUPLOT_QT_DIR)\"
 LDFLAGS = $(LDFLAGS) /libpath:$(QTDIR)\lib
-CFLAGS = $(CFLAGS) -DQTTERM -DQT_NO_OPENGL
+CFLAGS = $(CFLAGS) -DQTTERM -DQT_NO_OPENGL /std:c++17 /Zc:__cplusplus /permissive-
 MOC=$(QTDIR)\bin\moc
 UIC=$(QTDIR)\bin\uic
 RCC=$(QTDIR)\bin\rcc
@@ -282,7 +283,7 @@ T=$(TOP)\term\\
 D=$(TOP)\docs\\ 
 M=$(TOP)\demo\\ 
 
-default: $(BUILD_TARGETS) wgnuplot.exe $(HELPFILE) wgnuplot.mnu $(M)bf_test.exe gnuplot.exe demo_plugin.dll $(EXTRA_TARGETS)
+default: $(BUILD_TARGETS) wgnuplot.exe wgnuplot.mnu $(M)bf_test.exe gnuplot.exe demo_plugin.dll $(EXTRA_TARGETS)
 
 !INCLUDE $(S)\makefile.all
 
@@ -603,7 +604,7 @@ install:
 	copy /Y wgnuplot.exe $(DESTDIR)\bin
 	copy /Y gnuplot.exe $(DESTDIR)\bin
 	copy /Y gnuplot_qt.exe $(DESTDIR)\bin
-	copy /Y *gnuplot.exe.manifest $(DESTDIR)\bin
+	if exist *gnuplot.exe.manifest copy /Y *gnuplot.exe.manifest $(DESTDIR)\bin
 	copy /Y $(W)wgnuplot.mnu $(DESTDIR)\bin
 	copy /Y $(W)wgnuplot-ja.mnu $(DESTDIR)\bin
 	if exist wgnuplot.chm copy /Y wgnuplot.chm $(DESTDIR)\bin
@@ -626,7 +627,7 @@ install:
 	copy /Y $(TOP)\share\LaTeX\gnuplot.cfg $(DESTDIR)\share\LaTeX
 	if not exist $(DESTDIR)\docs mkdir $(DESTDIR)\docs
 	for %f in (NEWS) do copy $(TOP)\%f $(DESTDIR)\%f
-	for %f in (BUGS README Copyright FAQ.pdf) do copy $(TOP)\%f $(DESTDIR)\docs\%f
+	for %f in (BUGS README Copyright) do copy $(TOP)\%f $(DESTDIR)\docs\%f
 	if not exist $(DESTDIR)\license mkdir $(DESTDIR)\license
 	for %f in (Copyright) do copy $(TOP)\%f $(DESTDIR)\license\%f
 	if exist $(TOP)\win\README-Windows.txt copy /Y $(TOP)\win\README-Windows.txt $(DESTDIR)
@@ -635,12 +636,12 @@ install:
 	xcopy /Y $(TOP)\demo $(DESTDIR)\demo
 	if not exist $(DESTDIR)\demo\games mkdir $(DESTDIR)\demo\games
 	xcopy /Y $(TOP)\demo\games $(DESTDIR)\demo\games
-	-mkdir -p $(DESTDIR)\$(GNUPLOT_TEX_DIR)\generic\gnuplot
-	-mkdir -p $(DESTDIR)\$(GNUPLOT_TEX_DIR)\plain\gnuplot
-	-mkdir -p $(DESTDIR)\$(GNUPLOT_TEX_DIR)\latex\gnuplot
-	-mkdir -p $(DESTDIR)\$(GNUPLOT_TEX_DIR)\context\gnuplot
-	cp -p $(TOP)\share\LaTeX\README $(DESTDIR)\$(GNUPLOT_TEX_DIR)\latex\gnuplot
-	cp -p $(TOP)\share\LaTeX\gnuplot.cfg $(DESTDIR)\$(GNUPLOT_TEX_DIR)\latex\gnuplot
+	if not exist $(DESTDIR)\$(GNUPLOT_TEX_DIR)\generic\gnuplot mkdir $(DESTDIR)\$(GNUPLOT_TEX_DIR)\generic\gnuplot
+	if not exist $(DESTDIR)\$(GNUPLOT_TEX_DIR)\plain\gnuplot mkdir $(DESTDIR)\$(GNUPLOT_TEX_DIR)\plain\gnuplot
+	if not exist $(DESTDIR)\$(GNUPLOT_TEX_DIR)\latex\gnuplot mkdir $(DESTDIR)\$(GNUPLOT_TEX_DIR)\latex\gnuplot
+	if not exist $(DESTDIR)\$(GNUPLOT_TEX_DIR)\context\gnuplot mkdir $(DESTDIR)\$(GNUPLOT_TEX_DIR)\context\gnuplot
+	copy /Y $(TOP)\share\LaTeX\README $(DESTDIR)\$(GNUPLOT_TEX_DIR)\latex\gnuplot
+	copy /Y $(TOP)\share\LaTeX\gnuplot.cfg $(DESTDIR)\$(GNUPLOT_TEX_DIR)\latex\gnuplot
 !IF "$(LUA)" == "1"
 	cp -p $(TOP)\term\lua\gnuplot-tikz.lua $(DESTDIR)\$(GNUPLOT_LUA_DIR)
 	cp -p gnuplot-lua-tikz.sty $(DESTDIR)\$(GNUPLOT_TEX_DIR)\latex\gnuplot
